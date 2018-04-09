@@ -1,0 +1,1471 @@
+int x = 0; //position in x of white square
+int y = 0; //position in y of white square
+
+//Buildings
+int gold_storage = 1;
+int dark_elixir_storage = 1;
+int gold_mine = 1;
+int elixir_collector = 1;
+int dark_elixir_drill = 1;
+int elixir_storage = 1;
+int dark_barrack = 1;
+int barrack = 1;
+int army_camp = 1;
+int laboratory = 1;
+int spell_factory = 1;
+int clan_castle = 1;
+int town_hall = 1;
+int builders_hut = 1;
+int cannon = 1;
+int archer_tower = 1;
+int wall = 1;
+int mortar = 1;
+int bomb = 1;
+int air_defence = 1;
+int air_sweeper = 1;
+int spring_trap = 1;
+int wizard_tower = 1;
+int giant_bomb = 1;
+int air_bomb = 1;
+int seeking_air_mine = 1;
+int barbarian_king = 1;
+int hidden_tesla = 1;
+
+//when to stop the keyReleased so that it doesn't goes on and on
+boolean released = true; 
+
+
+//Value of each building and value of survival value
+//if modifications need to be made considering the game of life, these modifications need to be here
+int gs = 7; //gold storage
+int ds = 7; //dark eleixir storage
+int dd = 7; // dark elixir drill
+int es = 7; // elixir storage
+int gm = 7; // gold mine
+int ec = 7; // elixir collector
+int db = 5; // dark barrack
+int ba = 6; // barrack
+int ac = 2; // army camp
+int la = 5; // laboratory
+int sf = 5; // spell factory
+int cc = 8; // clan castle
+int th = 7; // town hall
+int bh = 5; // builder's hut
+//Defences
+int ca = 15; // cannon
+int at = 16; // archer tower
+int wa = 1; // wall
+int mo = 16; // mortar
+int bo = 10; // bomb
+int ad = 19; // air defense
+int as = 14; // air sweeper
+int st = 6; // spring trap
+int wt = 16; // wizard tower
+int gb = 13; // giant bomb
+int ab = 14; // air bomb
+int sm = 14; // seeking air mine
+int bk = 18; // barbarian king
+int ht = 16; // hidden tesla
+int survival_value = 18; //the value you must have around you to survive a generation
+
+
+int generation = 0;
+int space_occupied = 0;
+int th_exist = 0;
+int space_still_occupied = 0;
+int already_Analyzed = 0;
+int lost = 0; //if 0 you are still alive, if 1 you died
+
+//cellArray position 
+int col = 0; //to alter position in cellArray
+int row = 0; //to later position in cellArray
+int occupied = 0; //to see if the position in the cellArray is already occupied 
+  int cols = 44; //to set up the cell Array
+  int rows = 44; //to set up the cellArray
+  int cols_2 = 1000; //maximum number of building that you can have in a used Array
+  int cols_3 = 246;
+  int[][] position_Array = new int[cols][rows]; //to create 40x40 positions in cellArray
+// Two nested loops allow us to visit every spot in a 2D array.   
+// For every column I, visit every row J.
+  int[][] number_Array = new int[cols][rows];
+  String[][] name_Array = new String[cols][rows];
+  String[] used_Array_String = new String[cols_2]; 
+  int[] used_Array_Number = new int[cols_2];
+  String[] Analyzed_String_Array = new String[cols_3]; //buildings that were already analyzed to see if they lived or not
+  int[] Analyzed_Number_Array = new int[cols_3]; 
+  int position_analyzed_Array = 0;
+
+//to setup two displays one over the other
+PGraphics moving_display; //where the cursor is moved
+PGraphics staking_display; //where the buildings are placed
+void setup(){
+  size (820, 400);  
+  background(200);
+  moving_display = createGraphics(820,400); //setting dimensions
+  staking_display = createGraphics(820,400); //setting dimensions
+  
+  //set up all of the position if the cellArray with 0
+ for (int i = 0; i<cols_2; i++){
+    used_Array_String[i] = " ";
+    used_Array_Number[i] = 0;
+ }
+ 
+ for (int i = 0; i<cols_3; i++){
+ Analyzed_String_Array[i] = " "; 
+ Analyzed_Number_Array[i] = 0; 
+ }
+  for (int i = 0; i < cols; i++) {
+  for (int j = 0; j < rows; j++) {
+    if(i>=40||j>=40){
+       position_Array[i][j] = 1;
+       number_Array[i][j] = 0;
+       name_Array[i][j] = " ";
+    }
+    else{
+    position_Array[i][j] = 0;
+    number_Array[i][j] = 0;
+    name_Array[i][j] = " ";
+   
+    }
+  }
+}
+
+}
+ 
+void draw(){
+ if (released == true){
+  moving_display.beginDraw();
+  moving_display.background(200);//take this one of for the other to stick
+  moving_display.rect(x,y,10,10); //cursor
+  moving_display.endDraw();
+  
+ //drawing the lines for the grid
+  for (int i=0; i <= 400; i = i + 10){
+  staking_display.beginDraw();
+  staking_display.line(i, 0, i, 400);
+  staking_display.line(0, i, 400, i);
+  staking_display.textSize(20);
+  }
+  col = (x/10); //find the position in the cellArray that corresponds in x position cursor 
+  row = (y/10); //find the position in the cellArray that corresponds in y position cursor
+  
+      if (key == ENTER){
+        while (lost == 0){
+       th_exist = 0;
+      space_still_occupied = 0;
+      //the for loop is to know how much space is occupied by the buildings to be able to determine the percentage destroyed
+      for (int i = 0; i <= 39; i++) {
+        for (int j = 0; j <= 39; j++) {
+          if (position_Array[i][j] == 1){
+            space_occupied++;
+            }
+        }
+      }
+      //fc and fr are going to look at every individual square on the grid and analyze if the building will survive another generation
+for (int fc = 0; fc <= 39; fc++){
+ for (int fr = 0; fr <= 39; fr++){
+      //reinitializing the variables used to their initial value
+      int size = 0; //used to know what are the size of the buildings (1x1, 2x2, 3x3, 4x4 or 5x5)
+      int total_value = 0; //used to know what is the total value of a building to see if it survives
+      int used = 0; //to know if a building was already used in the calculations of total_value
+      int new_position = 0; //to know where to input the used_Array
+      int position_used_Array = 0;
+      already_Analyzed = 0; //to know if the buildings total value was already analyzed
+      used = 0;
+      position_analyzed_Array = 0;
+      //to know if the building that is represented by the [fc][fr] has already been analyzed for the total_value
+      for (int i = 0; i<Analyzed_String_Array.length; i++){ 
+       if(name_Array[fc][fr].equals(" ") != true){ //to make sure that we only calculated squares that are not empty
+       if(Analyzed_String_Array[i].equals(name_Array[fc][fr]) == true && Analyzed_Number_Array[i] == number_Array[fc][fr]){
+        already_Analyzed = 1;  //this building was already analyzed
+       }
+       }
+      }
+      
+      if (already_Analyzed != 1){ //if the building was not already_Analyzed
+        for (int i = 0; i<Analyzed_String_Array.length; i++){
+          if (Analyzed_String_Array[i].equals(" ") != true){
+           position_analyzed_Array++; //to know where to insert it in the cellArray without erasing an already used space
+          }
+        }
+        //since it was not already analyzed, we need to store the name of the building and its number in the analyzed array (string and number)
+        Analyzed_String_Array[position_analyzed_Array] = name_Array[fc][fr];
+        Analyzed_Number_Array[position_analyzed_Array] = number_Array[fc][fr];
+      //if statement to know what is the size of the building to give what is the size of the parameter that we will have to check
+      if (name_Array[fc][fr].equals("wa") == true || name_Array[fc][fr].equals("bo") == true || name_Array[fc][fr].equals("st") == true || name_Array[fc][fr].equals("ab") == true || name_Array[fc][fr].equals("sm") == true) { //when the building is a 1x1 
+        size = 1;
+      }
+      else if (name_Array[fc][fr].equals("bh") == true || name_Array[fc][fr].equals("as") == true || name_Array[fc][fr].equals("gb") == true || name_Array[fc][fr].equals("ht") == true) { //when the building is a 2x2
+        size = 2;
+      }
+      else if (name_Array[fc][fr].equals("gm") == true || name_Array[fc][fr].equals("ec") == true || name_Array[fc][fr].equals("dd") == true || name_Array[fc][fr].equals("gs") == true || name_Array[fc][fr].equals("es") == true || name_Array[fc][fr].equals("ds") == true || name_Array[fc][fr].equals("db") == true || name_Array[fc][fr].equals("ba") == true || name_Array[fc][fr].equals("sf") == true || name_Array[fc][fr].equals("cc") == true || name_Array[fc][fr].equals("ca") == true || name_Array[fc][fr].equals("at") == true || name_Array[fc][fr].equals("mo") == true || name_Array[fc][fr].equals("ad") == true || name_Array[fc][fr].equals("wt") == true || name_Array[fc][fr].equals("bk") == true) { //when the building is a 3x3 
+        size = 3;
+      }
+      else if (name_Array[fc][fr].equals("la") == true || name_Array[fc][fr].equals("th") == true ) { //when the building is a 4x4 
+        size = 4;
+      }
+      else if (name_Array[fc][fr].equals("ac") == true) { //when the building is a 5x5
+        size = 5;
+      }
+      else { //name Array is empty
+        size = 0;
+      }
+      
+      if (size != 0){ //if there is a building present
+      
+       used_Array_String[position_used_Array] = name_Array[fc][fr];
+       used_Array_Number[position_used_Array] = number_Array[fc][fr];
+        //for loop that will look at every place surrounding the building
+        for (int m = (fc-1); m <= (fc+size); m++){
+          for (int n = (fr-1); n <= (fr+size); n++){
+            //for(int i = 0; i < 25; i++){ //--> when its here it works
+             //print(used_Array_String[i]); 
+             //}
+          
+             used = 0;
+            if (m >= 0 && n >= 0){ //to make sure that does not go out of bound of the grid
+            
+           
+            for (int i = 0; i < used_Array_String.length; i++){ //check if the building was not already counted
+            
+              if (used_Array_String[i].equals(name_Array[m][n]) == true && used_Array_Number[i] == number_Array[m][n]){ //i dont know if this works probably not
+                used = 1;
+              }
+            }
+           
+           
+            if (used != 1){
+              for (int i_2 = 0; i_2 < used_Array_String.length; i_2++){
+               if(used_Array_String[i_2].equals(" ") != true){
+                new_position++; 
+               }
+              }
+              
+              used_Array_String[new_position] = name_Array[m][n];
+              used_Array_Number[new_position] = number_Array[m][n];
+              
+             
+              
+              switch(name_Array[m][n]){
+               case "wa":
+                 total_value = total_value + wa; //value of wall is 1
+               break;
+               case "ac":
+                 total_value = total_value + ac; //value of army camp is 2
+               break;
+               case "db":
+                 total_value = total_value + db; //value of dark barrack is 5
+               break;
+               case "la":
+                 total_value = total_value + la; //value of laboratory is 5
+               break;
+               case "sf":
+                 total_value = total_value + sf; //value of spell factory is 5
+               break;
+               case "bh":
+                 total_value = total_value + bh; //value of builder's hut is 5
+               break;
+               case "ba":
+                 total_value = total_value + ba; //value of barrack is 6
+               break;
+               case "st":
+                 total_value = total_value + st; //value of spring trap is 6
+               break;
+               case "gs":
+                 total_value = total_value + gs; //value of gold storage is 7
+               break;
+               case "ds":
+                 total_value = total_value + ds; //value of dark elixir storage is 7
+               break;
+               case "dd":
+                 total_value = total_value + dd; //value of dark elixir drill is 7
+               break;
+               case "es":
+                 total_value = total_value + es; //value of elixir storage is 7
+               break;
+               case "gm":
+                 total_value = total_value + gm; //value of gold mine is 7 
+               break;
+               case "ec":
+                 total_value = total_value + ec; //value of elixir collector is 7
+               break;
+               case "th":
+                 total_value = total_value + th; //value of townhall is 7
+               break;
+               case "cc":
+                 total_value = total_value + cc; //value of clan castle is 8
+               break;
+               case "bo":
+                 total_value = total_value + bo; //value of bomb is 10
+               break;
+               case "gb":
+                 total_value = total_value + gb; //value of giant bomb is 13
+               break;
+               case "as":
+                 total_value = total_value + as; //value of air sweeper is 14
+               break;
+               case "ab":
+                 total_value = total_value + ab; //value of air bomb is 14
+               break;
+               case "sm":
+                 total_value = total_value + sm; //value of seeking air mine is 14
+               break;
+               case "ca":
+                 total_value = total_value + ca; //value of cannon is 15
+               break;
+               case "at":
+                 total_value = total_value + at; //value of archer tower is 16
+               break;
+               case "mo":
+                 total_value = total_value + mo; //value of mortar is 16
+               break;
+               case "wt":
+                 total_value = total_value + wt; //value of wizard tower is 16
+               break;
+               case "ht":
+                 total_value = total_value + ht; //value of hidden tesla is 16
+               break;
+               case "bk":
+                 total_value = total_value + bk; //value of barbarian king is 18
+               break;
+               case "ad":
+                 total_value = total_value + ad; //value of air defence is 19
+               break;
+              } //end of switch function
+             
+            } //end of if (used != 1)
+            }//end of if (m >= 0 && n >= 0)
+   
+          }//end for (int n = (fr-1); n <= (fr+size); n++)
+        }//end for (int m = (fc-1); m <= (fc+size); m++)
+        for (int i = 0; i<cols_2; i++){ //reinitialized the used_arrays to empty since we start again
+            used_Array_String[i] = " ";
+            used_Array_Number[i] = 0;
+             } 
+       
+        if (total_value <= survival_value){
+        for (int i_3 = fc; i_3 <= (fc+size-1); i_3++){
+          for (int j_2 = fr; j_2 <= (fr+size-1); j_2++){
+           position_Array[i_3][j_2] = 0;
+             
+          }//end for j_2
+        }//end for i_3
+      } //if total value <= survival value
+      total_value = 0;
+        
+      } //end if (size != 0)
+      
+      
+      } //if already analyzed
+ } //end of for fr
+} //end of for fc
+
+
+for (int i= 0; i<=39; i++){
+  for (int j =0; j<=39; j++){
+    if(position_Array[i][j] == 0){
+     name_Array[i][j] = " "; //empties the name_Array of building that are dead
+    }
+  }
+}
+
+generation ++;
+
+//two conditions that make you lose against the attacking player 
+//if your townhall is destroyed
+for (int i = 0; i <= 39; i++) {
+  for (int j = 0; j <= 39; j++) {
+    if (name_Array[i][j].equals("th") == true){
+      th_exist = 1;
+    }
+  }
+}
+//if more that 50 percent of the space occupied is destroyed
+for (int i = 0; i <= 39; i++) {
+  for (int j = 0; j <= 39; j++) {
+    if (position_Array[i][j] == 1){
+      space_still_occupied++;
+    }
+  }
+}
+if (th_exist != 1 || space_still_occupied <= (space_occupied/2)){
+ 
+ lost = 1;
+}
+        }
+print("You survived ");
+ print(generation);
+ if (generation ==1){
+   print(" generation");
+ }
+ else{
+ print(" generations");
+ }
+ javax.swing.JOptionPane.showMessageDialog(null, "Your village has been destroyed. To see how many generations you survived look at the black dialog box");
+ exit();
+ 
+      }
+     switch(key){ //when a key is released
+     case 'p': //when the letter p is released
+     for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(dark_elixir_storage <=1){ //can<t be more than 1 dark elixir storage
+        staking_display.fill(128,0,128); //purple
+        staking_display.rect(x, y, 30,30);//3x3
+        dark_elixir_storage++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = dark_elixir_storage;
+             name_Array[m][n] = "ds";
+           }
+         }
+       }
+       else{
+           print("Already used the dark elixir storage"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      
+      break;
+      
+      case 'o': //gold storage
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(gold_storage <=2){ //can<t be more than 2 gold storage
+        staking_display.fill(255,165,0); //orange
+        staking_display.rect(x, y, 30,30);//3x3
+        gold_storage++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = gold_storage; //which number of building 
+             name_Array[m][n] = "gs"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the gold storage"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'b': //gold mines
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(gold_mine <= 6){ //can<t be more than 6 gold mines
+        staking_display.fill(0,191,255); //deep sky blue
+        staking_display.rect(x, y, 30,30);//3x3
+        gold_mine++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed   
+             number_Array[m][n] = gold_mine; //which number of building 
+             name_Array[m][n] = "gm"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the gold mine"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'g': //elixir collectors
+       for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(elixir_collector <=6){ //can<t be more than 6 elixir collectors
+        staking_display.fill(34,139,34); //forest green(255,165,0); //orange
+        staking_display.rect(x, y, 30,30);//3x3
+        elixir_collector++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = elixir_collector; //which number of building 
+             name_Array[m][n] = "ec"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the elixir collector"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'y': //dark elixir drills
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(dark_elixir_drill <= 1){ //can<t be more than a dark elixir dirll
+        staking_display.fill(255,255,0); //yellow
+        staking_display.rect(x, y, 30,30);//3x3
+        dark_elixir_drill++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = dark_elixir_drill; //which number of building 
+             name_Array[m][n] = "dd"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the dark elixir drill"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'r'://elixir storage
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(elixir_storage <= 2){ //can<t be more than 2 elixir storage
+        staking_display.fill(255,0,0); //red
+        staking_display.rect(x, y, 30,30);//3x3
+        elixir_storage++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = elixir_storage; //which number of building 
+             name_Array[m][n] = "es"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the elixir storage"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'P': //dark barracks
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(dark_barrack <= 1){ //can<t be more than a dark barrack
+        staking_display.fill(255,20,147); // deep pink
+        staking_display.rect(x, y, 30,30);//3x3
+        dark_barrack++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed   
+             number_Array[m][n] = dark_barrack; //which number of building 
+             name_Array[m][n] = "db"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the dark barrack"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'A': //barracks
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(barrack <= 4){ //can<t be more than 4 barrack
+        staking_display.fill(0,0,139); //dark blue
+        staking_display.rect(x, y, 30,30);//3x3
+        barrack++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed
+             number_Array[m][n] = barrack ; //which number of building 
+             name_Array[m][n] = "ba"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the barracks"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'G': //Army camp
+      for(int m=col;m<=(col+4);m++){
+       for(int n=row;n<=(row+4);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(army_camp <= 4){ //can<t be more than 4 army camp
+        staking_display.fill(0,100,0); //dark green
+        staking_display.rect(x, y, 50,50);//5x5
+        army_camp++;
+        for(int m=col;m<=(col+4);m++){
+           for(int n=row;n<=(row+4);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed   
+             number_Array[m][n] = army_camp; //which number of building 
+             name_Array[m][n] = "ac"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the army camp"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'l': //laboratory
+      for(int m=col;m<=(col+3);m++){
+       for(int n=row;n<=(row+3);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(laboratory <= 1){ //can<t be more than 1 laboratory
+        staking_display.fill(128,0,0); //maroon
+        staking_display.rect(x, y, 40,40);//4x4
+        laboratory++;
+        for(int m=col;m<=(col+3);m++){
+           for(int n=row;n<=(row+3);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = laboratory ; //which number of building 
+             name_Array[m][n] = "la"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the laboratory"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 's': //spell factory
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(spell_factory <= 1){ //can<t be more than 1 spell factory
+        staking_display.fill(169,169,169); //dark gray
+        staking_display.rect(x, y, 30,30);//3x3
+        spell_factory++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = spell_factory ; //which number of building 
+             name_Array[m][n] = "sf"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the spell factory"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'c': //clan castle
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(clan_castle <= 1){ //can<t be more than 1 clan castle
+        staking_display.fill(255,250,205); //lemon shiffon
+        staking_display.rect(x, y, 30,30);//3x3
+        clan_castle++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = clan_castle; //which number of building 
+             name_Array[m][n] = "cc"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the clan castle"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 't': //town hall
+      for(int m=col;m<=(col+3);m++){
+       for(int n=row;n<=(row+3);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(town_hall <= 1){ //can<t be more than 1 town_hall
+        staking_display.fill(124,252,0); //lawn green
+        staking_display.rect(x, y, 40,40);//4x4
+        town_hall++;
+        for(int m=col;m<=(col+3);m++){
+           for(int n=row;n<=(row+3);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed
+             number_Array[m][n] = town_hall; //which number of building 
+             name_Array[m][n] = "th"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the townhall"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'h': //builder's hut
+      for(int m=col;m<=(col+1);m++){
+       for(int n=row;n<=(row+1);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(builders_hut <= 4){ //can<t be more than 4 builders hut
+        staking_display.fill(100,149,237); //corn flower blue
+        staking_display.rect(x, y, 20,20);//2x2
+        builders_hut++;
+        for(int m=col;m<=(col+1);m++){
+           for(int n=row;n<=(row+1);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = builders_hut; //which number of building 
+             name_Array[m][n] = "bh"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the builder's hut"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'n': //cannon
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(cannon <= 5){ //can<t be more than 5 cannon
+        staking_display.fill(255,160,122); //light salmon
+        staking_display.rect(x, y, 30,30);//3x3
+        cannon++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed
+             number_Array[m][n] = cannon; //which number of building 
+             name_Array[m][n] = "ca"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the cannons"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'R': //Archer Tower
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(archer_tower <= 4){ //can<t be more than 4 archer tower
+        staking_display.fill(240,255,240); //dark blue
+        staking_display.rect(x, y, 30,30);//3x3
+        archer_tower++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed    
+             number_Array[m][n] = archer_tower; //which number of building 
+             name_Array[m][n] = "at"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the archer tower"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'w': //Wall
+      for(int m=col;m<=(col);m++){
+       for(int n=row;n<=(row);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(wall <= 175){ //can<t be more than 175 walls
+        staking_display.fill(112,128,144); //slate gray
+        staking_display.rect(x, y, 10,10);//1x1
+        wall++;
+        for(int m=col;m<=(col);m++){
+           for(int n=row;n<=(row);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = wall; //which number of building 
+             name_Array[m][n] = "wa"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the walls"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'm': //mortar
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(mortar <= 3){ //can<t be more than 3 mortar
+        staking_display.fill(210,105,30); //chocolate
+        staking_display.rect(x, y, 30,30);//3x3
+        mortar++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = mortar; //which number of building 
+             name_Array[m][n] = "mo"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the mortars"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'S': //bomb
+      for(int m=col;m<=(col);m++){
+       for(int n=row;n<=(row);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(bomb <= 6){ //can<t be more than 6 bombs
+        staking_display.fill(64,224,208); //turquoise
+        staking_display.rect(x, y, 10,10);//1x1
+        bomb++;
+        for(int m=col;m<=(col);m++){
+           for(int n=row;n<=(row);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = bomb; //which number of building 
+             name_Array[m][n] = "bo"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the bombs"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'z': //Air Defence
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(air_defence <= 3){ //can<t be more than 3 defence
+        staking_display.fill(255,215,0); //gold
+        staking_display.rect(x, y, 30,30);//3x3
+        air_defence++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed     
+             number_Array[m][n] = air_defence; //which number of building 
+             name_Array[m][n] = "ad"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the air defences"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'x': //air sweeper
+      for(int m=col;m<=(col+1);m++){
+       for(int n=row;n<=(row+1);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(air_sweeper <= 1){ //can<t be more than 1 air sweeper
+        staking_display.fill(178,34,34); //firebrick
+        staking_display.rect(x, y, 20,20);//2x2
+        air_sweeper++;
+        for(int m=col;m<=(col+1);m++){
+           for(int n=row;n<=(row+1);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed    
+             number_Array[m][n] = air_sweeper; //which number of building 
+             name_Array[m][n] = "as"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the air sweeper"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'v': //spring trap
+      for(int m=col;m<=(col);m++){
+       for(int n=row;n<=(row);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(spring_trap <= 4){ //can<t be more than 4 spring traps
+        staking_display.fill(205,92,92); //indian red
+        staking_display.rect(x, y, 10,10);//3x3
+        spring_trap++;
+        for(int m=col;m<=(col);m++){
+           for(int n=row;n<=(row);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed
+             number_Array[m][n] = spring_trap; //which number of building 
+             name_Array[m][n] = "st"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the spring trap"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'd': //wizard tower
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(wizard_tower <= 2){ //can<t be more than 2 wizard towers
+        staking_display.fill(32,178,170); //light sea green
+        staking_display.rect(x, y, 30,30);//3x3
+        wizard_tower++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = wizard_tower; //which number of building 
+             name_Array[m][n] = "wt"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the wizard towers"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'B': //giant bomb
+      for(int m=col;m<=(col+1);m++){
+       for(int n=row;n<=(row+1);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(giant_bomb <= 2){ //can<t be more than 2 giant bomb
+        staking_display.fill(0,0,0); //black
+        staking_display.rect(x, y, 20,20);//2x2
+        giant_bomb++;
+        for(int m=col;m<=(col+1);m++){
+           for(int n=row;n<=(row+1);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = giant_bomb; //which number of building 
+             name_Array[m][n] = "gb"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the giant bomb"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'a': //air bomb
+      for(int m=col;m<=(col);m++){
+       for(int n=row;n<=(row);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(air_bomb <= 2){ //can<t be more than 2 air bomb
+        staking_display.fill(222,184,135); //burly wood
+        staking_display.rect(x, y, 10,10);//1x1
+        air_bomb++;
+        for(int m=col;m<=(col);m++){
+           for(int n=row;n<=(row);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed  
+             number_Array[m][n] = air_bomb; //which number of building 
+             name_Array[m][n] = "ab"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the air bombs"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'f': //seeking air mine
+      for(int m=col;m<=(col);m++){
+       for(int n=row;n<=(row);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(seeking_air_mine <= 1){ //can<t be more than 1 seeking air mine
+        staking_display.fill(221,160,221); //Plum
+        staking_display.rect(x, y, 10,10);//1x1
+        seeking_air_mine++;
+        for(int m=col;m<=(col);m++){
+           for(int n=row;n<=(row);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = seeking_air_mine; //which number of building 
+             name_Array[m][n] = "sm"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the seeking air mine"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'k': //barbarian king
+      for(int m=col;m<=(col+2);m++){
+       for(int n=row;n<=(row+2);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(barbarian_king <= 1){ //can<t be more than 1 barbarian king
+        staking_display.fill(240,230,140); //khaki
+        staking_display.rect(x, y, 30,30);//3x3
+        barbarian_king++;
+        for(int m=col;m<=(col+2);m++){
+           for(int n=row;n<=(row+2);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed   
+             number_Array[m][n] = barbarian_king; //which number of building 
+             name_Array[m][n] = "bk"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the barbarian king"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+      
+      case 'T': //hidden tesla
+      for(int m=col;m<=(col+1);m++){
+       for(int n=row;n<=(row+1);n++){
+         if(position_Array[m][n]==1){ //looking if the position is already occupied
+         occupied = 1; //if it is occupied becomes 1
+        }
+       }
+      }
+      
+      switch(occupied){ 
+       case 0: //if the place is not occupied than the building can be placed
+       if(hidden_tesla <= 2){ //can<t be more than 4 barrack
+        staking_display.fill(0,250,154); //medium spring green
+        staking_display.rect(x, y, 20,20);//2x2
+        hidden_tesla++;
+        for(int m=col;m<=(col+1);m++){
+           for(int n=row;n<=(row+1);n++){
+             position_Array[m][n]=1; //changing all of the value in the cellArray to 1 associated to where the building is placed 
+             number_Array[m][n] = hidden_tesla; //which number of building 
+             name_Array[m][n] = "ht"; //which building is it
+           }
+         }
+       }
+       else{
+           print("Already used the hidden teslas"); 
+       }
+       break;
+        case 1:
+        print("this space is occupied");
+        break;
+      }
+      break;
+     
+      
+     }
+     released = false;
+     occupied = 0;
+     //text on the side of the grid to tell the player which letter is associated to which building
+     for (int i=0; i <= 400; i = i + 10){ 
+    staking_display.fill(0,0,0); //black 
+    staking_display.textSize(15);
+    staking_display.text("Legend:", 420, 20); 
+    staking_display.text("Gold Mines = b (6)", 410, 50);
+    staking_display.text("Elixir Collectors = g (6)", 410, 70);
+    staking_display.text("Dark Elixir Drills = y (1)", 410, 90);
+    staking_display.text("Gold Storage= o (2)", 410, 110);
+    staking_display.text("Elixir Storage = r (2)", 410, 130);
+    staking_display.text("Dark Elixir Storage = p (1)", 410, 150);
+    staking_display.text("Dark Barracks = P (1)", 410, 170);
+    staking_display.text("Barracks = A (4)", 410, 190);
+    staking_display.text("Army Camp = G (4)", 410, 210);
+    staking_display.text("Laboratory = l (1)", 410, 230);
+    staking_display.text("Spell Factory = s (1)", 410, 250);
+    staking_display.text("Clan Castle = c (1)", 410, 270);
+    staking_display.text("Town Hall = t (1)", 410, 290);
+    staking_display.text("Builder's Hut = h (4)", 410, 310);
+    staking_display.text("Cannon = n (5)", 410, 330);
+    staking_display.text("Archer Tower = R (4)", 410, 350);
+    staking_display.text("Wall = w (175)", 410, 370);
+    staking_display.text("Mortar = m (3)", 615, 50);
+    staking_display.text("Bomb = S (6)", 615, 70);
+    staking_display.text("Air Defence = z (3)", 615, 90);
+    staking_display.text("Air Sweeper = x (1)", 615, 110);
+    staking_display.text("Spring Trap = v (4)", 615, 130);
+    staking_display.text("Wizard Tower = d (2)", 615, 150);
+    staking_display.text("Giant Bomb = B (2)", 615, 170);
+    staking_display.text("Air Bomb = a (2)", 615, 190);
+    staking_display.text("Seeking Air Mine = f (1)", 615, 210);
+    staking_display.text("Barbarian King = k (1)", 615, 230);
+    staking_display.text("Hidden Tesla = T (2)", 615, 250);
+    //colors associated to the writing
+    staking_display.fill(0,191,255);//deep sky blue
+    staking_display.rect(600, 40, 10,10);//1x1
+    staking_display.fill(34,139,34); //forest green
+    staking_display.rect(600, 60, 10,10);//1x1
+    staking_display.fill(255,255,0); //yellow
+    staking_display.rect(600, 80, 10,10);//1x1
+    staking_display.fill(255,165,0); //orange
+    staking_display.rect(600, 100, 10,10);//1x1
+    staking_display.fill(295,0,0); //red
+    staking_display.rect(600, 120, 10,10);//1x1
+    staking_display.fill(128,0,128); //purple
+    staking_display.rect(600, 140, 10,10);//1x1
+    staking_display.fill(255,20,147);//Deep pink
+    staking_display.rect(600, 160, 10,10);//1x1
+    staking_display.fill(0,0,139);//dark blue
+    staking_display.rect(600, 180, 10,10);//1x1
+    staking_display.fill(0,100,0); //dark green
+    staking_display.rect(600, 200, 10,10);//1x1
+    staking_display.fill(128,0,0); //maroon
+    staking_display.rect(600, 220, 10,10);//1x1
+    staking_display.fill(169,169,169); //dark gray
+    staking_display.rect(600, 240, 10,10);//1x1
+    staking_display.fill(255,250,205); //lemon shiffon
+    staking_display.rect(600, 260, 10,10);//1x1
+    staking_display.fill(124,252,0);//lawn green
+    staking_display.rect(600, 280, 10,10);//1x1
+    staking_display.fill(100, 149, 237);//corn flower blue
+    staking_display.rect(600, 300, 10,10);//1x1
+    staking_display.fill(255,160,122);//light salmon
+    staking_display.rect(600, 320, 10,10);//1x1
+    staking_display.fill(240,255,240);//Honeydew
+    staking_display.rect(600, 340, 10,10);//1x1
+    staking_display.fill(112,128,144);//slate gray
+    staking_display.rect(600, 360, 10,10);//1x1
+    staking_display.fill(210,105,30);//chocolate
+    staking_display.rect(800, 40, 10,10);//1x1
+    staking_display.fill(64,224,208);//Turquoise
+    staking_display.rect(800, 60, 10,10);//1x1
+    staking_display.fill(255,215,0);//gold
+    staking_display.rect(800, 80, 10,10);//1x1
+    staking_display.fill(178,34,34);//Firebrick
+    staking_display.rect(800, 100, 10,10);//1x1
+    staking_display.fill(205,92,92);//Indian red
+    staking_display.rect(800, 120, 10,10);//1x1
+    staking_display.fill(32,178,170);//light sea green
+    staking_display.rect(800, 140, 10,10);//1x1
+    staking_display.fill(0,0,0);//black
+    staking_display.rect(800, 160, 10,10);//1x1
+    staking_display.fill(222,184,135);//burly wood
+    staking_display.rect(800, 180, 10,10);//1x1
+    staking_display.fill(221,160,221);//Plum
+    staking_display.rect(800, 200, 10,10);//1x1
+    staking_display.fill(240,230,140);//khaki
+    staking_display.rect(800, 220, 10,10);//1x1
+    staking_display.fill(0,250,154);//medium spring green
+    staking_display.rect(800, 240, 10,10);//1x1
+     }
+    
+    staking_display.endDraw(); //display on image on top of the other
+    image(moving_display,0,0);
+    image(staking_display,0,0);
+     
+    }
+}
+   
+ void keyReleased(){
+  released = true;
+  
+  if (key == CODED) {
+    if (keyCode == UP) {
+      y -= 10;
+    } else if (keyCode == DOWN) {
+      y += 10;
+    } else if (keyCode == LEFT) {
+      x -= 10;
+    } else if (keyCode == RIGHT) {
+      x += 10;
+    }  
+    
+    
+   
+    //x limits of movement
+    if (x >= 400){
+    x -= 10;
+    }
+    if (x <= -10){
+    x += 10;
+    }
+    
+    // y limits of movement
+    if (y >= 400){
+    y -= 10;
+    }
+    if (y <= -10){
+    y += 10;
+    }
+    
+  } 
+}
+ 
